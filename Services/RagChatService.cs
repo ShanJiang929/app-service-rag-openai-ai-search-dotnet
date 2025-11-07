@@ -52,45 +52,66 @@ public class RagChatService
         try
         {
             // Limit chat history to the 10 most recent messages to prevent token limit issues
-            var recentHistory = history.Count <= 20 
-                ? history 
+            var recentHistory = history.Count <= 20
+                ? history
                 : history.Skip(history.Count - 20).ToList();
-                
+
             // Add system message to provide context and instructions to the model
             var messages = recentHistory.Prepend(new SystemChatMessage(_settings.SystemPrompt ?? throw new ArgumentNullException(nameof(_settings.SystemPrompt))));
-
             // Configure the chat completion with Azure AI Search as a data source
             ChatCompletionOptions options = new();
-            
+
             options.AddDataSource(new AzureSearchChatDataSource()
             {
                 Endpoint = new Uri(_settings.SearchServiceUrl ?? throw new ArgumentNullException(nameof(_settings.SearchServiceUrl))),
                 IndexName = _settings.SearchIndexName,
                 Authentication = DataSourceAuthentication.FromSystemManagedIdentity(), // Use system-assigned managed identity
-                QueryType = DataSourceQueryType.VectorSemanticHybrid, // Combines vector search with keyword matching and semantic ranking
+                QueryType = DataSourceQueryType.Vector, // Combines vector search with keyword matching and semantic ranking
                 VectorizationSource = DataSourceVectorizer.FromDeploymentName(_settings.OpenAIEmbeddingDeployment),
-                SemanticConfiguration = _settings.SearchIndexName + "-semantic-configuration", // Build semantic configuration name from index name
+                FieldMappings = new DataSourceFieldMappings
+                {
+                    ContentFieldNames = { "content" },      // using collection initializer
+                    VectorFieldNames  = { "contentVector" } // using collection initializer
+                }
             });
 
             var result = await _chatClient.CompleteChatAsync(messages, options);
 
             var ctx = result.Value.GetMessageContext();
-            
+
             var response = new ChatResponse
             {
                 Content = result.Value.Content,
                 Citations = ctx?.Citations
             };
-            
+
             return response;
         }
-        catch (Exception ex)
+        // catch (Exception ex)
+        // {
+        //     _logger.LogError(ex, "Error in GetChatCompletionAsync");
+        //     return new ChatResponse 
+        //     { 
+        //         Error = $"An error occurred: {ex.Message}" 
+        //     };
+        catch (Azure.RequestFailedException rfe)
         {
-            _logger.LogError(ex, "Error in GetChatCompletionAsync");
-            return new ChatResponse 
-            { 
-                Error = $"An error occurred: {ex.Message}" 
-            };
+           _logger.LogError(rfe, "Azure RequestFailedException: Status={Status}, ErrorCode={ErrorCode}, Message={Message}",
+               rfe.Status, rfe.ErrorCode, rfe.Message);
+         _logger.LogDebug("Full exception: {Ex}", rfe.ToString());
+          return new ChatResponse { Error = $"Azure RequestFailedException: {rfe.Status} {rfe.ErrorCode} {rfe.Message}" };
+     }
+       catch (System.ClientModel.ClientResultException cre)
+       {
+           _logger.LogError(cre, "ClientResultException: {Message}", cre.Message);
+          _logger.LogDebug("Full exception: {Ex}", cre.ToString());
+          return new ChatResponse { Error = $"ClientResultException: {cre.Message}" };
+      }
+     catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error in GetChatCompletionAsync: {Message}", ex.Message);
+            return new ChatResponse { Error = $"An error occurred: {ex}" };
         }
+        
     }
 }

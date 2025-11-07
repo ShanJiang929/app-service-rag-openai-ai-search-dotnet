@@ -6,34 +6,34 @@
       "value": "${AZURE_ENV_NAME}"
     },
     "location": {
-      "value": "eastus2"
+      "value": "Australia East "
     },
     "enableNetworkSecurity": {
       "value": false
     },
     "appServicePlanSku": {
-      "value": "S1"
+      "value": "F1"
     },
     "openAiSkuName": {
       "value": "S0"
     },
     "openAiGptDeploymentName": {
-      "value": "gpt-4o-mini"
+      "value": "gpt-4o"
     },
     "openAiGptModelName": {
-      "value": "gpt-4o-mini"
+      "value": "gpt-4o"
     },
     "openAiGptModelVersion": {
-      "value": "2024-07-18"
+      "value": "2024-11-20"
     },
     "openAiEmbeddingDeploymentName": {
-      "value": "text-embedding-ada-002"
+      "value": "text-embedding-3-small"
     },
     "openAiEmbeddingModelName": {
-      "value": "text-embedding-ada-002"
+      "value": "text-embedding-3-small"
     },
     "openAiEmbeddingModelVersion": {
-      "value": "2"
+      "value": "1"
     },
     "searchServiceSku": {
       "value": "standard"
